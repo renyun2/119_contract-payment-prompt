@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      POSTGRES_USER: contractpay
+      POSTGRES_PASSWORD: contractpay
+      POSTGRES_DB: contract_payment
+    volumes:
+      - contract_pay_pg:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contractpay -d contract_payment"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      GIN_MODE: release
+      DATABASE_DSN: "host=postgres user=contractpay password=contractpay dbname=contract_payment port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  contract_pay_pg:
